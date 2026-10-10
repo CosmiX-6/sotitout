@@ -24,6 +24,7 @@
     .row { display:flex; gap:6px; margin:4px 0; flex-wrap:wrap; }
     .row input { flex:1; min-width:0; }
     .msg { color:var(--muted); font-size:12px; min-height:1em; }
+    details { margin:6px 0; } summary { cursor:pointer; color:var(--muted); }
     #summary { margin-top:12px; }
   </style>
 </head>
@@ -50,9 +51,23 @@
         <div class="row"><input id="p-name" placeholder="Name" /></div>
         <div class="row"><input id="p-kw" placeholder="Keywords, comma separated" /></div>
         <div class="row"><input id="p-due" type="date" /><button id="p-add">Add</button></div></section>
-      <section><h3>Setup</h3><div id="providers"></div>
-        <div class="row"><input id="g-id" placeholder="Google OAuth client ID" /><button id="g-connect">Connect Google</button></div>
-        <div class="row"><input id="k" type="password" placeholder="Anthropic API key (optional)" /><button id="k-save">Save</button></div>
+      <section><h3>Connections</h3><div id="providers"></div>
+        <details><summary>WhatsApp (exported chats)</summary>
+          <div class="row"><input id="wa-me" placeholder="Your name exactly as in the chats" /><button id="wa-save">Save</button></div>
+          <div class="row"><button id="wa-add">Add chat exports…</button><button id="wa-clear">Clear</button></div>
+          <div class="msg" id="wa-files"></div></details>
+        <details><summary>Microsoft 365 / Outlook</summary>
+          <div class="row"><input id="ms-id" placeholder="Entra app (client) ID" /><button id="ms-connect">Connect</button></div></details>
+        <details><summary>Google (Gmail, Calendar)</summary>
+          <div class="row"><input id="g-id" placeholder="Google OAuth client ID" /><button id="g-connect">Connect</button></div></details>
+        <details><summary>Slack</summary>
+          <div class="row"><input id="sl-token" type="password" placeholder="User token (xoxp-…)" /><button id="sl-save">Save</button></div></details>
+        <details><summary>Jira</summary>
+          <div class="row"><input id="jr-site" placeholder="acme.atlassian.net" /></div>
+          <div class="row"><input id="jr-email" placeholder="Atlassian email" /></div>
+          <div class="row"><input id="jr-token" type="password" placeholder="API token" /><button id="jr-save">Save</button></div></details>
+        <details><summary>Claude summaries (optional)</summary>
+          <div class="row"><input id="k" type="password" placeholder="Anthropic API key" /><button id="k-save">Save</button></div></details>
         <div class="msg" id="setup-msg"></div></section>
     </aside>
   </main>

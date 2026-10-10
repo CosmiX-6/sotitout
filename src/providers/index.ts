@@ -9,4 +9,4 @@ export function localProviders(platform: NodeJS.Platform = process.platform): Pr
   return [];
 }
 
-export type { Provider };
+export type { ExternalTask, Provider } from "./types.ts";

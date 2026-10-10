@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -10,11 +10,18 @@ import { Store } from "../core/store.ts";
 import type { CalendarEvent, EmailMessage, Task } from "../core/types.ts";
 import { GmailProvider, GOOGLE_SCOPES } from "../providers/gmail.ts";
 import { localProviders, type Provider } from "../providers/index.ts";
-import { refreshTokens, signInWithGoogle, type Tokens } from "../providers/oauth.ts";
+import { JiraProvider, normalizeSite } from "../providers/jira.ts";
+import { MICROSOFT_SCOPES, MicrosoftProvider } from "../providers/microsoft.ts";
+import { GOOGLE_OAUTH, MICROSOFT_OAUTH, refreshTokens, signInWithOAuth, type Tokens } from "../providers/oauth.ts";
+import { SlackProvider } from "../providers/slack.ts";
+import { WhatsAppProvider } from "../providers/whatsapp.ts";
 
 type View = "day" | "projects" | "eod";
 interface Config {
   googleClientId?: string;
+  microsoftClientId?: string;
+  jira?: { site: string; email: string }; // the API token lives in the keychain
+  whatsapp?: { files: string[]; me: string };
   enabled: Record<string, boolean>;
 }
 
@@ -44,19 +51,29 @@ let events: CalendarEvent[] = [];
 let tomorrow: CalendarEvent[] = [];
 let lastSync: string | undefined;
 
+/** Returns a function that yields a fresh access token, refreshing and re-saving as needed. */
+function tokenGetter(secret: string, clientId: string, tokenUrl: string): () => Promise<string> {
+  return async () => {
+    const cur = JSON.parse(loadSecret(secret)!) as Tokens;
+    const next = await refreshTokens(clientId, cur, fetch, tokenUrl);
+    if (next !== cur) saveSecret(secret, JSON.stringify(next));
+    return next.access_token;
+  };
+}
+
 function allProviders(): Provider[] {
   const list = localProviders();
   if (config.googleClientId && loadSecret("google")) {
-    const clientId = config.googleClientId;
-    list.push(
-      new GmailProvider(async () => {
-        const cur = JSON.parse(loadSecret("google")!) as Tokens;
-        const next = await refreshTokens(clientId, cur);
-        if (next !== cur) saveSecret("google", JSON.stringify(next));
-        return next.access_token;
-      }),
-    );
+    list.push(new GmailProvider(tokenGetter("google", config.googleClientId, GOOGLE_OAUTH.tokenUrl)));
   }
+  if (config.microsoftClientId && loadSecret("microsoft")) {
+    list.push(new MicrosoftProvider(tokenGetter("microsoft", config.microsoftClientId, MICROSOFT_OAUTH.tokenUrl)));
+  }
+  const slack = loadSecret("slack");
+  if (slack) list.push(new SlackProvider(slack));
+  const jiraToken = loadSecret("jira");
+  if (config.jira && jiraToken) list.push(new JiraProvider({ ...config.jira, token: jiraToken }));
+  if (config.whatsapp?.files.length) list.push(new WhatsAppProvider(config.whatsapp.files, config.whatsapp.me));
   return list;
 }
 
@@ -68,11 +85,17 @@ async function sync(): Promise<{ added: number; errors: string[] }> {
   const mail: EmailMessage[] = [];
   const ev: CalendarEvent[] = [];
   const tm: CalendarEvent[] = [];
+  let added = 0;
 
   for (const p of allProviders()) {
     if (config.enabled[p.id] === false) continue;
     try {
-      mail.push(...(await p.fetchEmails(since)));
+      if (p.fetchEmails) mail.push(...(await p.fetchEmails(since)));
+      if (p.fetchTasks && p.taskSource) {
+        // Only reached when the fetch succeeded, so a failure can never mark tasks done by mistake.
+        const r = store.syncExternal(p.taskSource, await p.fetchTasks(), now);
+        added += r.added;
+      }
       if (p.fetchEvents) {
         const all = await p.fetchEvents(dayStart, addDays(dayStart, 2));
         const tmStart = addDays(dayStart, 1).getTime();
@@ -86,7 +109,7 @@ async function sync(): Promise<{ added: number; errors: string[] }> {
   emails = mail;
   events = ev;
   tomorrow = tm;
-  const added = store.ingestEmails(mail, now);
+  added += store.ingestEmails(mail, now);
   store.save();
   lastSync = now.toISOString();
   return { added, errors };
@@ -107,6 +130,10 @@ function registerIpc(): void {
     lastSync,
     providers: allProviders().map((p) => ({ id: p.id, label: p.label, enabled: config.enabled[p.id] !== false })),
     googleClientId: config.googleClientId ?? "",
+    microsoftClientId: config.microsoftClientId ?? "",
+    jira: config.jira ?? null,
+    whatsapp: config.whatsapp ?? { files: [], me: "" },
+    hasSlack: !!loadSecret("slack"),
     hasApiKey: !!loadSecret("anthropic"),
   }));
   ipcMain.handle("tasks", () => store.state.tasks.filter((t) => t.status === "open"));
@@ -137,9 +164,42 @@ function registerIpc(): void {
     saveConfig();
   });
   ipcMain.handle("connectGoogle", async (_e, clientId: string) => {
-    const tokens = await signInWithGoogle(clientId.trim(), GOOGLE_SCOPES, (u) => shell.openExternal(u));
+    const tokens = await signInWithOAuth(GOOGLE_OAUTH, clientId.trim(), GOOGLE_SCOPES, (u) => shell.openExternal(u));
     saveSecret("google", JSON.stringify(tokens));
     config.googleClientId = clientId.trim();
+    saveConfig();
+  });
+  ipcMain.handle("connectMicrosoft", async (_e, clientId: string) => {
+    const tokens = await signInWithOAuth(MICROSOFT_OAUTH, clientId.trim(), MICROSOFT_SCOPES, (u) => shell.openExternal(u));
+    saveSecret("microsoft", JSON.stringify(tokens));
+    config.microsoftClientId = clientId.trim();
+    saveConfig();
+  });
+  ipcMain.handle("saveSlack", (_e, token: string) => saveSecret("slack", token.trim()));
+  ipcMain.handle("saveJira", (_e, j: { site: string; email: string; token: string }) => {
+    config.jira = { site: normalizeSite(j.site.trim()), email: j.email.trim() };
+    saveSecret("jira", j.token.trim());
+    saveConfig();
+  });
+  ipcMain.handle("addWhatsappFiles", async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const r = await dialog.showOpenDialog(win!, {
+      title: "Choose exported WhatsApp chats (.txt)",
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "WhatsApp chat export", extensions: ["txt"] }],
+    });
+    if (r.canceled) return;
+    const w = config.whatsapp ?? { files: [], me: "" };
+    w.files = [...new Set([...w.files, ...r.filePaths])];
+    config.whatsapp = w;
+    saveConfig();
+  });
+  ipcMain.handle("setWhatsappMe", (_e, me: string) => {
+    config.whatsapp = { files: config.whatsapp?.files ?? [], me: me.trim() };
+    saveConfig();
+  });
+  ipcMain.handle("clearWhatsapp", () => {
+    config.whatsapp = { files: [], me: config.whatsapp?.me ?? "" };
     saveConfig();
   });
   ipcMain.handle("setApiKey", (_e, key: string) => saveSecret("anthropic", key.trim()));

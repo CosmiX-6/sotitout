@@ -47,6 +47,7 @@ export function parseDue(text: string, now: Date): string | undefined {
   }
 
   if (/\b(eod|end of (the )?day|cob|today|tonight|asap)\b/.test(t)) return ymd(now);
+  if (/\bbefore tomorrow\b/.test(t)) return ymd(now);
   if (/\btomorrow\b/.test(t)) return ymd(addDays(now, 1));
 
   if ((m = t.match(new RegExp(`\\b(next |this )?(${WEEKDAYS.join("|")})\\b`)))) {

@@ -13,6 +13,7 @@ test("parseDue handles common phrasings", () => {
   assert.equal(parseDue("deadline 2026-11-01", now), "2026-11-01");
   assert.equal(parseDue("need it EOD", now), "2026-10-10");
   assert.equal(parseDue("by tomorrow", now), "2026-10-11");
+  assert.equal(parseDue("review it before tomorrow", now), "2026-10-10");
   assert.equal(parseDue("next monday", now), "2026-10-12");
   assert.equal(parseDue("nothing here", now), undefined);
 });

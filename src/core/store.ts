@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { extractTask, matchProject } from "./extract.ts";
+import type { ExternalTask } from "../providers/types.ts";
 import { DEFAULT_SETTINGS, type EmailMessage, type Project, type State, type Task } from "./types.ts";
 
 export const emptyState = (): State => ({ version: 1, settings: { ...DEFAULT_SETTINGS }, projects: [], tasks: [] });
@@ -43,6 +44,45 @@ export class Store {
       added++;
     }
     return added;
+  }
+
+  /**
+   * Reconcile tasks owned by an external system. `items` is the complete open set for `source`:
+   * new ones are added, known ones refreshed, and previously-open ones that vanished are marked done.
+   * Tasks the user dismissed stay dismissed.
+   */
+  syncExternal(source: Task["source"], items: ExternalTask[], now: Date): { added: number; completed: number } {
+    let added = 0;
+    let completed = 0;
+    const seen = new Set<string>();
+    for (const it of items) {
+      seen.add(it.id);
+      const existing = this.state.tasks.find((t) => t.id === it.id);
+      if (!existing) {
+        this.state.tasks.push({
+          id: it.id, title: it.title, due: it.due, highPriority: it.highPriority || undefined,
+          status: "open", source: it.source, createdAt: now.toISOString(), carriedCount: 0,
+          projectId: matchProject(it.title, it.projectHint ?? "", this.state.projects),
+        });
+        added++;
+        continue;
+      }
+      existing.title = it.title;
+      existing.due = it.due;
+      existing.highPriority = it.highPriority || undefined;
+      if (existing.status === "done") {
+        existing.status = "open"; // reopened upstream
+        existing.completedAt = undefined;
+      }
+    }
+    for (const t of this.state.tasks) {
+      if (t.source === source && t.status === "open" && !seen.has(t.id)) {
+        t.status = "done";
+        t.completedAt = now.toISOString();
+        completed++;
+      }
+    }
+    return { added, completed };
   }
 
   addProject(p: Omit<Project, "id" | "status"> & { status?: Project["status"] }): Project {

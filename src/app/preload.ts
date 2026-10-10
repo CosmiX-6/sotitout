@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld("api", {
   endDay: () => call("endDay"),
   toggleProvider: (id: string, on: boolean) => call("toggleProvider", id, on),
   connectGoogle: (clientId: string) => call("connectGoogle", clientId),
+  connectMicrosoft: (clientId: string) => call("connectMicrosoft", clientId),
+  saveSlack: (token: string) => call("saveSlack", token),
+  saveJira: (j: unknown) => call("saveJira", j),
+  addWhatsappFiles: () => call("addWhatsappFiles"),
+  setWhatsappMe: (me: string) => call("setWhatsappMe", me),
+  clearWhatsapp: () => call("clearWhatsapp"),
   setApiKey: (key: string) => call("setApiKey", key),
   summarize: (view: string) => call("summarize", view),
 });

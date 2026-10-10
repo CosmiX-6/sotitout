@@ -1,7 +1,7 @@
 interface Api {
   brief(v: string): Promise<string>;
   sync(): Promise<{ added: number; errors: string[] }>;
-  status(): Promise<{ lastSync?: string; providers: { id: string; label: string; enabled: boolean }[]; googleClientId: string; hasApiKey: boolean }>;
+  status(): Promise<{ lastSync?: string; providers: { id: string; label: string; enabled: boolean }[]; googleClientId: string; microsoftClientId: string; jira: { site: string; email: string } | null; whatsapp: { files: string[]; me: string }; hasSlack: boolean; hasApiKey: boolean }>;
   tasks(): Promise<{ id: string; title: string; due?: string }[]>;
   addTask(t: { title: string; due?: string; projectId?: string }): Promise<void>;
   setTask(id: string, status: string): Promise<void>;
@@ -10,6 +10,12 @@ interface Api {
   endDay(): Promise<number>;
   toggleProvider(id: string, on: boolean): Promise<void>;
   connectGoogle(id: string): Promise<void>;
+  connectMicrosoft(id: string): Promise<void>;
+  saveSlack(t: string): Promise<void>;
+  saveJira(j: { site: string; email: string; token: string }): Promise<void>;
+  addWhatsappFiles(): Promise<void>;
+  setWhatsappMe(me: string): Promise<void>;
+  clearWhatsapp(): Promise<void>;
   setApiKey(k: string): Promise<void>;
   summarize(v: string): Promise<string>;
 }
@@ -60,7 +66,13 @@ async function refresh() {
       return label;
     }),
   );
-  $<HTMLInputElement>("g-id").value = st.googleClientId;
+  const setVal = (id: string, v: string) => { const i = $<HTMLInputElement>(id); if (document.activeElement !== i) i.value = v; };
+  setVal("g-id", st.googleClientId);
+  setVal("ms-id", st.microsoftClientId);
+  setVal("wa-me", st.whatsapp.me);
+  setVal("jr-site", st.jira?.site ?? "");
+  setVal("jr-email", st.jira?.email ?? "");
+  $("wa-files").textContent = st.whatsapp.files.length ? `${st.whatsapp.files.length} chat file(s) added` : "No chats added yet. In WhatsApp: chat → ⋮ → More → Export chat → Without media.";
   $("status").textContent = st.lastSync ? `Synced ${new Date(st.lastSync).toLocaleTimeString()}` : "Not synced yet";
 }
 
@@ -105,6 +117,27 @@ $("g-connect").onclick = () => guard($("setup-msg"), async () => {
   await api.sync();
   await refresh();
 });
+const val = (id: string) => $<HTMLInputElement>(id).value;
+const wipe = (...ids: string[]) => ids.forEach((i) => ($<HTMLInputElement>(i).value = ""));
+const syncAfter = async (msg: string) => { $("setup-msg").textContent = msg; await api.sync(); await refresh(); };
+$("ms-connect").onclick = () => guard($("setup-msg"), async () => {
+  $("setup-msg").textContent = "Complete sign-in in your browser…";
+  await api.connectMicrosoft(val("ms-id"));
+  await syncAfter("Microsoft connected.");
+});
+$("sl-save").onclick = () => guard($("setup-msg"), async () => {
+  await api.saveSlack(val("sl-token"));
+  wipe("sl-token");
+  await syncAfter("Slack saved.");
+});
+$("jr-save").onclick = () => guard($("setup-msg"), async () => {
+  await api.saveJira({ site: val("jr-site"), email: val("jr-email"), token: val("jr-token") });
+  wipe("jr-token");
+  await syncAfter("Jira saved.");
+});
+$("wa-add").onclick = () => guard($("setup-msg"), async () => { await api.addWhatsappFiles(); await syncAfter("WhatsApp chats added."); });
+$("wa-save").onclick = () => guard($("setup-msg"), async () => { await api.setWhatsappMe(val("wa-me")); await syncAfter("Saved."); });
+$("wa-clear").onclick = () => guard($("setup-msg"), async () => { await api.clearWhatsapp(); await refresh(); });
 $("k-save").onclick = () => guard($("setup-msg"), async () => {
   await api.setApiKey($<HTMLInputElement>("k").value);
   $<HTMLInputElement>("k").value = "";

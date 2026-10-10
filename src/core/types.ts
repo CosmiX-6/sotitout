@@ -39,7 +39,7 @@ export interface Task {
   projectId?: string;
   due?: string; // YYYY-MM-DD
   status: TaskStatus;
-  source: "email" | "manual";
+  source: "email" | "manual" | "jira" | "todo";
   sourceFrom?: string;
   sourceSubject?: string;
   highPriority?: boolean;

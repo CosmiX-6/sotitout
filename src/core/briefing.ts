@@ -144,6 +144,8 @@ export function awaitingReply(emails: EmailMessage[], now: Date): EmailMessage[]
   return emails
     .filter((e) => {
       if (!e.isSent) return false;
+      // Chat messages are mostly statements; only chase the ones that asked something.
+      if ((e.provider === "slack" || e.provider === "whatsapp") && !e.body.includes("?")) return false;
       const t = new Date(e.receivedAt).getTime();
       return t >= weekAgo && t <= dayAgo && (lastInbound.get(e.threadId) ?? "") < e.receivedAt;
     })
@@ -332,7 +334,7 @@ export function renderDayBrief(b: DayBrief): string {
   L.push("## Inbox", `  ${b.unreadCount} unread.`);
   if (b.needsReply.length) {
     L.push("  Likely need a reply:");
-    b.needsReply.forEach((e) => L.push(`   - ${e.from.replace(/<.*>/, "").trim()}: ${e.subject}`));
+    b.needsReply.forEach((e) => L.push(`   - [${e.provider}] ${e.from.replace(/<.*>/, "").trim()}: ${e.subject}`));
   }
   L.push("");
 
@@ -378,7 +380,7 @@ export function renderEndOfDay(e: EndOfDay, now: Date): string {
   e.carryOver.slice(0, 10).forEach((s) => L.push(`  → ${taskLine(s)}`));
   L.push("", `## Follow-ups (${e.followUps.length})`);
   if (!e.followUps.length) L.push("  No sent emails waiting on a reply.");
-  e.followUps.forEach((m) => L.push(`  ? Sent "${m.subject}" to ${m.to.join(", ")} on ${m.receivedAt.slice(0, 10)} — no reply yet`));
+  e.followUps.forEach((m) => L.push(`  ? [${m.provider}] Sent "${m.subject}" to ${m.to.join(", ") || "chat"} on ${m.receivedAt.slice(0, 10)} — no reply yet`));
   L.push("", "## Tomorrow");
   if (!e.tomorrowEvents.length) L.push("  No meetings scheduled.");
   e.tomorrowEvents.forEach((ev) => L.push(`  ${evLine(ev)}`));
