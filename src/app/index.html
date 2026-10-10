@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>SotItOut</title>
+  <style>
+    :root { --bg:#fff; --fg:#1b1f24; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --card:#f8fafc; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --fg:#e6e8eb; --muted:#9aa3af; --line:#262b33; --accent:#6ea8ff; --card:#161a20; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+    header { display:flex; gap:8px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); }
+    header .sp { flex:1; }
+    button, input, select { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
+    button { cursor:pointer; }
+    button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+    main { display:grid; grid-template-columns:1fr 320px; gap:16px; padding:16px; }
+    @media (max-width: 760px) { main { grid-template-columns:1fr; } }
+    pre { margin:0; padding:16px; background:var(--card); border:1px solid var(--line); border-radius:8px; white-space:pre-wrap; font:13px/1.55 ui-monospace, Menlo, Consolas, monospace; }
+    aside section { margin-bottom:16px; }
+    h3 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    .task { display:flex; gap:6px; align-items:flex-start; padding:4px 0; border-bottom:1px solid var(--line); }
+    .task span { flex:1; }
+    .row { display:flex; gap:6px; margin:4px 0; flex-wrap:wrap; }
+    .row input { flex:1; min-width:0; }
+    .msg { color:var(--muted); font-size:12px; min-height:1em; }
+    #summary { margin-top:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <button data-view="day" class="on">My day</button>
+    <button data-view="projects">Projects</button>
+    <button data-view="eod">End of day</button>
+    <span class="sp"></span>
+    <span class="msg" id="status"></span>
+    <button id="sync">Sync</button>
+  </header>
+  <main>
+    <div>
+      <pre id="out">Loading…</pre>
+      <div class="row"><button id="summarize">Summarize with Claude</button><button id="endday">Close out day (carry over open tasks)</button></div>
+      <pre id="summary" hidden></pre>
+    </div>
+    <aside>
+      <section><h3>Open tasks</h3><div id="tasks"></div>
+        <div class="row"><input id="t-title" placeholder="New task" /><input id="t-due" type="date" /></div>
+        <div class="row"><select id="t-project"></select><button id="t-add">Add</button></div></section>
+      <section><h3>New project</h3>
+        <div class="row"><input id="p-name" placeholder="Name" /></div>
+        <div class="row"><input id="p-kw" placeholder="Keywords, comma separated" /></div>
+        <div class="row"><input id="p-due" type="date" /><button id="p-add">Add</button></div></section>
+      <section><h3>Setup</h3><div id="providers"></div>
+        <div class="row"><input id="g-id" placeholder="Google OAuth client ID" /><button id="g-connect">Connect Google</button></div>
+        <div class="row"><input id="k" type="password" placeholder="Anthropic API key (optional)" /><button id="k-save">Save</button></div>
+        <div class="msg" id="setup-msg"></div></section>
+    </aside>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
