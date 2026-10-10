@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "mcp-dist",
+    "rootDir": "src",
+    "rewriteRelativeImportExtensions": true,
+    "target": "ES2022",
+    "sourceMap": false
+  },
+  "include": ["src/mcp/server.ts"]
+}

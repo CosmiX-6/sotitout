@@ -1,6 +1,6 @@
 {
   "name": "sotitout",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Desktop daily-briefing and project-tracking assistant that reads your email and calendar.",
   "private": true,
   "type": "module",
@@ -10,6 +10,7 @@
     "test": "node --test \"test/*.test.ts\"",
     "brief": "node src/cli.ts",
     "typecheck": "tsc --noEmit",
+    "build:mcp": "rm -rf mcp-dist && tsc -p tsconfig.mcp.json",
     "build": "node scripts/build.mjs",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder"

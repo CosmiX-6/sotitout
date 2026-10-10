@@ -1,0 +1,8 @@
+{
+  "name": "sotitout",
+  "version": "0.2.0",
+  "description": "Daily brief, project tracking and end-of-day wrap-up built from your own Claude connectors (Gmail, Calendar, Slack, Jira, Microsoft 365) and WhatsApp exports.",
+  "author": { "name": "CosmiX-6" },
+  "repository": "https://github.com/CosmiX-6/sotitout",
+  "keywords": ["productivity", "daily-brief", "projects", "email", "calendar"]
+}

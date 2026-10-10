@@ -1,0 +1,11 @@
+{
+  "name": "sotitout",
+  "owner": { "name": "CosmiX-6" },
+  "plugins": [
+    {
+      "name": "sotitout",
+      "source": "./",
+      "description": "Daily brief, project status and end-of-day wrap-up from the connectors you already use in Claude."
+    }
+  ]
+}

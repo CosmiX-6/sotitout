@@ -12,8 +12,13 @@ export class Store {
   constructor(path: string) {
     this.path = path;
     this.state = emptyState();
+    this.reload();
+  }
+
+  /** Re-read the file so several processes (e.g. two Claude sessions) don't clobber each other. */
+  reload(): void {
     try {
-      const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<State>;
+      const raw = JSON.parse(readFileSync(this.path, "utf8")) as Partial<State>;
       this.state = {
         ...emptyState(),
         ...raw,

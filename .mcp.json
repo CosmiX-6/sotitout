@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sotitout": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-dist/mcp/server.js"]
+    }
+  }
+}
