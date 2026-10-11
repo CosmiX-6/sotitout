@@ -224,7 +224,13 @@ input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
 .tasks { list-style:none; margin:0; padding:0; display:grid; }
 .task { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:4px 12px; padding:12px 0; border-top:1px solid var(--line); align-items:start; }
 .task:first-child { border-top:0; padding-top:2px; }
-.task.one { grid-template-columns:minmax(0,1fr); } .task.one > * { grid-column:1; }
+.task.one { grid-template-columns:minmax(0,1fr); }
+.task.one > *, .task.one > .meta, .task.one > .title { grid-column:1; grid-row:auto; min-width:0; }
+.task .title b { overflow-wrap:anywhere; }
+.ellip { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.clamp1, .clamp2 { display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; min-width:0; }
+.clamp1 { -webkit-line-clamp:1; } .clamp2 { -webkit-line-clamp:2; }
+.task .sub { font-size:13.5px; } .task .snip { font-size:12.5px; color:var(--muted); }
 .check { width:22px; height:22px; border-radius:50%; border:2px solid var(--line-strong); background:var(--surface); margin-top:0; padding:0; position:relative; font-size:0; color:var(--accent-ink); }
 .check::after { content:""; position:absolute; inset:3px; background:currentColor; opacity:0; -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center/100% no-repeat; mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center/100% no-repeat; }
 .check:hover { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); } .check:hover::after { opacity:1; }
@@ -716,12 +722,15 @@ const normEvent = (e) => {
 /** Timed events that actually block your time (not all-day, not marked "free", e.g. a flight booked from email). */
 const isBusy = (e) => !e.allDay && !e.free;
 const rawList = (p, ...keys) => { for (const k of keys) if (Array.isArray(p[k])) return p[k]; return Array.isArray(p) ? p : []; };
-const AUTOMATED = /no-?reply|do-?not-?reply|newsletter|notifications?@|alerts?@|mailer-daemon|updates@/i;
+/** Senders that are almost never a person: no-reply, newsletters, marketing sub-domains (comm., email., news.) and role mailboxes. */
+const shortFrom = (f) => { const base = String(f).replace(/<.*>/, "").replace(/"/g, "").trim() || String(f); return base.length > 34 ? base.slice(0, 31) + "…" : base; };
+const AUTOMATED = /no-?reply|do-?not-?reply|newsletter|mailer-daemon|(^|[<\s"])(communications?|marketing|promo(tion)?s?|offers?|deals?|news|campaigns?|notifications?|alerts?|updates?|billing|receipts?|orders?|shipping|support|info|hello|team|mailer|donotreply)@|@(comm|email|e|mail|mailer|news|mg|em|send|bounce|notify|marketing)\./i;
+const BULK_LABEL = /^CATEGORY_(PROMOTIONS|UPDATES|SOCIAL|FORUMS)$/;
 const normThread = (t) => {
   const ms = Array.isArray(t.messages) ? t.messages : []; const last = ms[ms.length - 1] || {}; const first = ms[0] || {};
   const date = new Date(last.date || first.date || 0);
   return { id: String(t.id || last.id), from: String(last.sender || ""), subject: String(first.subject || last.subject || "(no subject)"), snippet: String(last.snippet || first.snippet || ""),
-    date, unread: ms.some((m) => (m.labelIds || []).includes("UNREAD")), count: Number(t.messageCount) || ms.length, to: (last.toRecipients || []).join(", "), url: t.viewUrl || "" };
+    date, unread: ms.some((m) => (m.labelIds || []).includes("UNREAD")), bulk: ms.some((m) => (m.labelIds || []).some((l) => BULK_LABEL.test(l))), count: Number(t.messageCount) || ms.length, to: (last.toRecipients || []).join(", "), url: t.viewUrl || "" };
 };
 async function loadSource(key, name, fn) {
   const s = sync[key]; s.state = "loading"; s.err = null; render();
@@ -1001,7 +1010,7 @@ function computeAlerts() {
     if (must.length) out.push({ lv: "critical", tab: "today", title: `${plural(must.length, "due-today task")} will not fit in your free time`, detail: must.slice(0, 2).map((r) => r.t.title).join(" · ") });
   }
   needsReply().filter((m) => isVip(m.from) || /urgent|asap|immediately|action required|deadline/i.test(`${m.subject} ${m.snippet}`)).slice(0, 3)
-    .forEach((m) => out.push({ lv: isVip(m.from) ? "critical" : "warn", tab: "today", title: `${m.from.replace(/<.*>/, "").trim() || "Someone"} is waiting: ${m.subject}`, detail: isVip(m.from) ? "VIP sender" : "" }));
+    .forEach((m) => out.push({ lv: isVip(m.from) ? "critical" : "warn", tab: "today", title: `${shortFrom(m.from) || "Someone"} is waiting: ${m.subject.length > 70 ? m.subject.slice(0, 67) + "…" : m.subject}`, detail: isVip(m.from) ? "VIP sender" : "" }));
   const fu = awaitingReplies(); if (fu.length) out.push({ lv: "warn", tab: "wrapup", title: `${plural(fu.length, "sent email")} with no reply`, detail: fu.slice(0, 2).map((m) => m.subject).join(" · ") });
   return out.sort((a, b) => (a.lv === "critical" ? 0 : 1) - (b.lv === "critical" ? 0 : 1));
 }
@@ -1102,7 +1111,7 @@ function taskRow(t, opts = {}) {
 const todayEvents = () => sync.cal.items.filter((e) => (e.allDay ? ymd(e.start) <= today() && today() < ymd(e.end) : ymd(e.start) === today()));
 const tomorrowEvents = () => { const t = ymd(addDays(new Date(), 1)); return sync.cal.items.filter((e) => (e.allDay ? ymd(e.start) <= t && t < ymd(e.end) : ymd(e.start) === t)); };
 const awaitingReplies = () => sync.sent.items.filter((m) => m.count === 1 && Date.now() - m.date.getTime() > cfg().followupDays * 864e5).sort((a, b) => b.date - a.date);
-const needsReply = () => sync.mail.items.filter((m) => m.unread && !AUTOMATED.test(m.from) && Date.now() - m.date.getTime() < cfg().replyHours * 36e5).sort((a, b) => Number(isVip(b.from)) - Number(isVip(a.from)) || b.date - a.date).slice(0, 6);
+const needsReply = () => sync.mail.items.filter((m) => m.unread && !m.bulk && !AUTOMATED.test(m.from) && Date.now() - m.date.getTime() < cfg().replyHours * 36e5).sort((a, b) => Number(isVip(b.from)) - Number(isVip(a.from)) || b.date - a.date).slice(0, 6);
 
 function renderToday() {
   const now = new Date(); const evs = todayEvents(); const timed = evs.filter(isBusy).sort((a, b) => a.start - b.start);
@@ -1150,8 +1159,8 @@ async function scanInbox() {
   const seen = new Set((mem.get("scan_log") || {}).ids || []);
   const known = new Set(tasks().map((t) => t.sourceRef).filter(Boolean));
   const fresh = sync.mail.items.filter((m) => !seen.has(m.id) && !known.has("gmail:" + m.id));
-  const skipped = fresh.filter((m) => AUTOMATED.test(m.from)).map((m) => m.id);
-  const cand = fresh.filter((m) => !AUTOMATED.test(m.from)).slice(0, 25);
+  const skipped = fresh.filter((m) => m.bulk || AUTOMATED.test(m.from)).map((m) => m.id);
+  const cand = fresh.filter((m) => !m.bulk && !AUTOMATED.test(m.from)).slice(0, 25);
   if (!cand.length) { if (skipped.length) markSeen(skipped); return; }
   scanning = true; scanInfo = ""; renderInboxTasks();
   try {
@@ -1259,7 +1268,7 @@ function renderWrapUp() {
   const fu = awaitingReplies().slice(0, 8);
   $("#awaiting-count").textContent = fu.length ? String(fu.length) : "";
   clear($("#wrapup-awaiting"), sync.sent.state === "error" ? h("div", { class: "notice bad" }, sync.sent.err) : null,
-    fu.length ? h("ul", { class: "tasks" }, fu.map((m) => h("li", { class: "task one" }, h("div", { class: "title" }, m.subject), h("div", { class: "meta" }, h("span", { class: "chip" }, "to " + (m.to || "unknown").slice(0, 40)), h("span", { class: "chip warn" }, "sent " + m.date.toLocaleDateString([], { month: "short", day: "numeric" }) + ", no reply")))))
+    fu.length ? h("ul", { class: "tasks" }, fu.map((m) => h("li", { class: "task one" }, h("div", { class: "title clamp2" }, m.subject), h("div", { class: "meta" }, h("span", { class: "chip" }, "to " + shortFrom(m.to || "unknown")), h("span", { class: "chip warn" }, "sent " + m.date.toLocaleDateString([], { month: "short", day: "numeric" }) + ", no reply")))))
       : h("div", { class: "empty" }, h("b", null, sync.sent.state === "ok" ? "Nobody is keeping you waiting" : "Gmail not connected"), sync.sent.state === "ok" ? "Every email you sent this week got a reply, or is under a day old." : "Connect on this tab to see sent emails that never got an answer."));
 
   const tm = tomorrowEvents().sort((a, b) => a.start - b.start); const top = ranked.slice(0, 5);
@@ -1276,8 +1285,9 @@ function renderNeedsReply() {
   const w = needsReply(); $("#reply-count").textContent = w.length ? String(w.length) : "";
   clear($("#needs-reply"),
     sync.mail.state === "error" ? h("div", { class: "notice bad" }, sync.mail.err) : null,
-    w.length ? h("ul", { class: "tasks" }, w.map((m) => h("li", { class: "task one" }, h("div", { class: "title" }, h("b", null, m.from.replace(/<.*>/, "").trim() || m.from), ": ", m.subject),
-      h("div", { class: "meta" }, h("span", { class: "chip" }, m.date.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })), h("span", { class: "muted", style: "font-size:13px;overflow-wrap:anywhere" }, m.snippet.slice(0, 110))))))
+    w.length ? h("ul", { class: "tasks" }, w.map((m) => h("li", { class: "task one" }, h("div", { class: "title ellip" }, shortFrom(m.from)),
+      h("div", { class: "sub clamp2" }, m.subject), h("div", { class: "snip clamp1" }, m.snippet),
+      h("div", { class: "meta" }, h("span", { class: "chip" }, m.date.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }))))))
       : h("div", { class: "empty" }, h("b", null, sync.mail.state === "ok" ? "Inbox is quiet" : "Gmail not connected"), sync.mail.state === "ok" ? "No unread messages from people in the last 2 days." : "Connect above to see who is waiting on you."));
 
 }

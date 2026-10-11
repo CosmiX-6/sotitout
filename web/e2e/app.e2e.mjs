@@ -51,6 +51,10 @@ function mockRuntime(o) {
     { id: "m2", messageCount: 1, messages: [{ date: at(7), sender: "alerts@bank.com", subject: "Txn", snippet: "debited", labelIds: ["UNREAD"] }] },
     { id: "m3", messageCount: 1, messages: [{ date: at(6), sender: "Boss <boss@acme.com>", subject: "Quarterly numbers", snippet: "Need them soon", labelIds: ["UNREAD"] }] },
   ];
+  if (!o.noMail) threads.push(
+    { id: "m4", messageCount: 1, messages: [{ date: at(8), sender: "communication@comm.adidas.in", subject: "Your exclusive early access to everyday accessories, elevated for every moment", snippet: "Everyday accessories, elevated for every moment. Shop the new collection now and enjoy free delivery on orders above 999 rupees across India", labelIds: ["UNREAD", "INBOX"] }] },
+    { id: "m5", messageCount: 1, messages: [{ date: at(8), sender: "Real Person <friend@example.org>", subject: "Dinner?", snippet: "Are you free on Friday?", labelIds: ["UNREAD", "CATEGORY_PROMOTIONS"] }] },
+    { id: "m6", messageCount: 1, messages: [{ date: at(8, 5), sender: "A.Very.Long.Unbroken.Sender.Name.With.No.Spaces.At.All.Whatsoever@some-extremely-long-domain-name-example.org", subject: "Contract_renewal_FINAL_v7_signed_by_everyone_please_check_the_attached_document_thoroughly", snippet: "Please reply with your decision as soon as you can because the deadline is close", labelIds: ["UNREAD", "INBOX"] }] });
   const sent = [{ id: "s1", messageCount: 1, messages: [{ date: at(9, 0, -3), sender: "me@x.com", subject: "Vendor contract", toRecipients: ["sam@vendor.com"], labelIds: ["SENT"] }] }];
   const servers = () => [
     { server: "Google Calendar", authStatus: o.calAuth || "connected", tools: ["list_events", "create_event", "delete_event"].filter((t) => !(o.missingTools || []).includes(t)).map((name) => ({ name })) },
@@ -144,12 +148,14 @@ await section("today", async () => {
   const alerts = await txt("#alerts");
   ok(/overdue task/.test(alerts) && /Atlas launch: deadline tomorrow/.test(alerts) && /Double-booked: Design review and Vendor call/.test(alerts), "alerts wrong: " + alerts.replace(/\n/g, "|"));
   ok(!/Flight|Declined/.test(await page.evaluate(() => document.querySelector("#bell-pop").innerText + document.querySelector("#alerts").innerText)), "free/declined events must not create conflicts");
-  ok((await txt("#bell-dot")) === "5", "bell count (overdue, due today, Atlas deadline, double-booked, unanswered mail): " + (await txt("#bell-dot")));
+  ok((await txt("#bell-dot")) === "6", "bell count (overdue, due today, Atlas deadline, double-booked, unanswered mail, urgent mail): " + (await txt("#bell-dot")));
   const prio = await txt("#today-priorities");
   ok(/Finish pricing page/.test(prio) && /Send pricing copy to Priya/.test(prio) && /Reply to Boss/.test(prio), "priorities/auto-picked tasks missing: " + prio.replace(/\n/g, "|"));
   ok(/Reply to Boss/.test(await txt("#inbox-tasks")), "inbox panel missing auto-picked task");
   const reply = await txt("#needs-reply");
   ok(/Priya/.test(reply) && /Boss/.test(reply) && !/bank/.test(reply), "needs-reply list wrong: " + reply.replace(/\n/g, "|"));
+  ok(!/adidas|everyday accessories/i.test(reply), "marketing mail must not be listed as needing a reply: " + reply.replace(/\n/g, "|"));
+  ok(!/Dinner/.test(reply), "mail in a Promotions category must not be listed");
   ok(/Offsite/.test(await txt("#today-schedule")), "all-day event missing from schedule");
   const stats = await txt("#today-stats");
   ok(/Open tasks/.test(stats) && /Meetings/.test(stats) && /Free focus/.test(stats) && /Overdue/.test(stats), "stat tiles wrong");
@@ -465,7 +471,14 @@ await section("keyboard, layout, themes", async () => {
     await page.keyboard.press("Escape");
     await page.evaluate(() => document.activeElement.blur()); await page.keyboard.press("/"); ok((await page.evaluate(() => document.activeElement.id)) === "search", `${label}: key / focuses search`);
     await page.keyboard.press("Escape");
-    for (const t of ["capture", "projects", "today", "wrapup"]) { await page.click("#tab-" + t); const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]); ok(w[0] <= w[1], `${label}: horizontal overflow on ${t} ${w}`); }
+    for (const t of ["capture", "projects", "today", "wrapup"]) {
+      await page.click("#tab-" + t);
+      const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]); ok(w[0] <= w[1], `${label}: horizontal overflow on ${t} ${w}`);
+      const squeezed = await page.evaluate(() => [...document.querySelectorAll(".task .title, .etx b, .look .lt, .pcard h3, .res .rt, .tl .what")].filter((e) => e.offsetParent && e.innerText.trim().length > 12 && e.getBoundingClientRect().width < 90).map((e) => e.innerText.slice(0, 30) + " (" + Math.round(e.getBoundingClientRect().width) + "px)"));
+      ok(squeezed.length === 0, `${label}: text squeezed into a sliver on ${t}: ` + squeezed.join(" | "));
+      const clipped = await page.evaluate(() => [...document.querySelectorAll("#needs-reply .task")].filter((e) => e.offsetParent && e.getBoundingClientRect().height > 170).length);
+      ok(clipped === 0, `${label}: a task row is absurdly tall on ${t}`);
+    }
     await page.click("#tab-today"); await page.waitForTimeout(150);
     if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, `${label}-${scheme}.png`), fullPage: true });
     ok(errs.length === 0, `${label}: console errors ` + errs.join(" | "));
