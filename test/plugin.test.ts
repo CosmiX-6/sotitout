@@ -33,7 +33,7 @@ test("plugin manifests are valid and point at files that exist", () => {
 
 test("every skill has frontmatter and only mentions tools that exist", () => {
   const dirs = readdirSync(new URL("../skills", import.meta.url));
-  assert.deepEqual(dirs.sort(), ["day", "eod", "projects", "setup"]);
+  assert.deepEqual(dirs.sort(), ["projects", "setup", "today", "wrapup"]);
   for (const d of dirs) {
     const md = read(`skills/${d}/SKILL.md`);
     const fm = md.match(/^---\nname: (\S+)\ndescription: (.+)\n---\n/);

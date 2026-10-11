@@ -1,9 +1,9 @@
 ---
-name: day
-description: Morning brief. Shows what today looks like (time, meetings, free blocks), what needs a reply, the ranked priorities and a plan that fits tasks into free time. Use when the user asks about their day, schedule, priorities, "what's on my plate", or "what should I do now".
+name: today
+description: Today view. Shows what today looks like (time, meetings, free blocks), what needs a reply, the ranked priorities and a plan that fits tasks into free time. Use when the user asks about their day, schedule, priorities, "what's on my plate", or "what should I do now".
 ---
 
-# Today's brief
+# Today
 
 Gather fresh data with whichever connectors are available, load it into SotItOut, then present the brief.
 

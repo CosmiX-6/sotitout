@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "main": "dist/main.cjs",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
     "brief": "node src/cli.ts",
@@ -13,7 +15,8 @@
     "build:mcp": "rm -rf mcp-dist && tsc -p tsconfig.mcp.json",
     "build": "node scripts/build.mjs",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "test:web": "node web/e2e/app.e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -25,8 +28,15 @@
   "build": {
     "appId": "com.sotitout.app",
     "productName": "SotItOut",
-    "files": ["dist/**/*", "package.json"],
-    "mac": { "target": "dmg" },
-    "win": { "target": "nsis" }
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
   }
 }

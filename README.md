@@ -2,9 +2,9 @@
 
 A daily brief, project tracker and end-of-day wrap-up that runs inside Claude and reads your work through the **connectors you already use**: Gmail, Google Calendar, Slack, Jira, Microsoft 365, plus WhatsApp exports.
 
-- **`/sotitout:day`**: the date and time, today's meetings, free focus blocks, who needs a reply, ranked priorities, and a plan that fits tasks into your free time.
+- **`/sotitout:today`**: the date and time, today's meetings, free focus blocks, who needs a reply, ranked priorities, and a plan that fits tasks into your free time.
 - **`/sotitout:projects`**: each project's health (on-track / at-risk / blocked / done), deadlines, overdue work and the next task.
-- **`/sotitout:eod`**: what got done, what carries over (tasks that keep slipping rise in priority), messages still waiting on a reply, and tomorrow.
+- **`/sotitout:wrapup`**: what got done, what carries over (tasks that keep slipping rise in priority), messages still waiting on a reply, and tomorrow.
 - **`/sotitout:setup`**: one-time chat that checks your connectors and records your projects, working hours and VIPs.
 
 ## Install (about two minutes, macOS or Windows)
@@ -17,7 +17,7 @@ You need [Claude Code](https://claude.com/claude-code) and Node.js 18+ (`brew in
 /sotitout:setup
 ```
 
-Then use `/sotitout:day` in the morning and `/sotitout:eod` when you finish. Colleagues run the same three lines; each person's data comes from **their own** connectors and stays on **their own** machine. To pick up updates: `/plugin marketplace update sotitout`.
+Then use `/sotitout:today` in the morning and `/sotitout:wrapup` when you finish. Colleagues run the same three lines; each person's data comes from **their own** connectors and stays on **their own** machine. To pick up updates: `/plugin marketplace update sotitout`.
 
 ### How it works
 
@@ -35,6 +35,21 @@ The skills above are a Claude Code feature, but the tools work anywhere MCP does
 ```json
 { "mcpServers": { "sotitout": { "command": "node", "args": ["/absolute/path/to/sotitout/mcp-dist/mcp/server.js"] } } }
 ```
+
+### The web app (`web/sotitout.html`)
+A single-page Claude artifact that does the same job with a UI. Open it inside Claude; it reads Gmail and Google Calendar through your connectors and saves your tasks and projects privately.
+
+| View | What it does |
+|---|---|
+| **Capture** | Say anything. Tasks, projects and notes are saved, meetings are created on Google Calendar and emails are saved as Gmail drafts (never sent). Everything has Undo; "Ask me first" mode is in Settings. |
+| **Projects** | Health, progress and deadlines for every project, plus a deadlines list for the next 14 days. |
+| **Today** | Daily summary, tasks found in your inbox, priorities, schedule with free time, who needs your reply. |
+| **Wrap-up** | Completed today, carried over, sent mail awaiting replies, tomorrow, and a written wrap-up. |
+| **Needs attention** | Overdue work, deadlines, double-bookings, tasks that will not fit, VIP or urgent mail. Shown on every view and from the bell. |
+
+If an event or draft cannot be created, the page says why (with the error code) and offers **Allow access** or **Open permissions**. **Settings → Connections** shows which connector tools are allowed.
+
+Run the end-to-end tests (headless Chromium with a mocked Claude runtime, 130 checks): `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs npm run test:web`.
 
 ### Where each source comes from
 
